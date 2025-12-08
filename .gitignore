@@ -1,0 +1,61 @@
+# ========================
+# Python / Django
+# ========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.sqlite3
+*.log
+*.pot
+*.pyc
+*.env
+*.mo
+
+# Django media / static
+media/
+staticfiles/
+static/
+
+# Migration backups
+*.bak
+
+# ========================
+# Virtual Environments
+# ========================
+venv/
+.venv/
+ENV/
+env/
+my_venv/        # 추가: 네 가상환경 이름을 무조건 ignore
+my_vemv/*
+
+# ========================
+# Node / React
+# ========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+build/
+dist/
+.DS_Store
+
+# ========================
+# IDE / Editor
+# ========================
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.iml
+
+# ========================
+# Docker
+# ========================
+docker-compose.override.yml
+
+# ========================
+# Misc
+# ========================
+*.swp
