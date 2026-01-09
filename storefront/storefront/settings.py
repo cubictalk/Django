@@ -1,18 +1,17 @@
 """
 Django settings for storefront project.
-Final version for Docker + SaaS deployment
+Final version for Local + Docker + Fly.io (SaaS ready)
 """
 
 from pathlib import Path
 import os
-from dotenv import load_dotenv
 import dj_database_url
 
 # =========================
 # BASE
 # =========================
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv()  # .env 로컬용 (배포에서는 환경변수로 대체)
+
 
 # =========================
 # SECURITY
@@ -26,13 +25,21 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = os.getenv(
     "ALLOWED_HOSTS",
-    "*"
+    "localhost,127.0.0.1,storefront-summer-sky-3010.fly.dev"
 ).split(",")
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://storefront-summer-sky-3010.fly.dev",
+]
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 
 # =========================
 # APPLICATIONS
 # =========================
 INSTALLED_APPS = [
+    # Django
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -40,42 +47,52 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
-    # third-party
+    # Third-party
     "rest_framework",
     "corsheaders",
 
-    # local apps
+    # Local apps
     "playground",
     "core",
     "teacher",
 ]
 
+
 # =========================
 # MIDDLEWARE
 # =========================
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'corsheaders.middleware.CorsMiddleware',  # 👈 위로
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+
+    # WhiteNoise
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+
+    # CORS
+    "corsheaders.middleware.CorsMiddleware",
+
+    # Django default
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 
 # =========================
-# CORS (React 연동)
+# CORS (Frontend)
 # =========================
-CORS_ALLOW_ALL_ORIGINS = True   # 초기 SaaS 단계 OK
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+
 
 # =========================
 # URL / WSGI
 # =========================
 ROOT_URLCONF = "storefront.urls"
 WSGI_APPLICATION = "storefront.wsgi.application"
+
 
 # =========================
 # TEMPLATES
@@ -96,21 +113,32 @@ TEMPLATES = [
     },
 ]
 
+
 # =========================
 # DATABASE
 # =========================
 DATABASES = {
     "default": dj_database_url.config(
-        default="sqlite:///db.sqlite3",
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
         conn_max_age=600,
     )
 }
 
+
 # =========================
-# AUTH / JWT
+# AUTH (🔥 핵심 수정)
 # =========================
 AUTH_USER_MODEL = "core.User"
 
+AUTHENTICATION_BACKENDS = [
+    "core.backends.EmailBackend",   # ✅ email 기반 인증 (Fly 문제 해결)
+    "django.contrib.auth.backends.ModelBackend",
+]
+
+
+# =========================
+# DRF / JWT
+# =========================
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -119,6 +147,7 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ),
 }
+
 
 # =========================
 # PASSWORD VALIDATION
@@ -130,6 +159,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+
 # =========================
 # I18N
 # =========================
@@ -138,8 +168,9 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
+
 # =========================
-# STATIC FILES (WhiteNoise)
+# STATIC FILES
 # =========================
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
@@ -148,13 +179,15 @@ STATICFILES_STORAGE = (
     "whitenoise.storage.CompressedManifestStaticFilesStorage"
 )
 
+
 # =========================
 # DEFAULT PK
 # =========================
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+
 # =========================
-# LOGGING (Docker Friendly)
+# LOGGING (Docker / Fly Friendly)
 # =========================
 LOGGING = {
     "version": 1,
