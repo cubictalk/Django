@@ -22,7 +22,7 @@ RUN pip install -r requirements.txt
 COPY . /app/
 
 # collect static
-RUN python manage.py collectstatic --noinput
+#RUN python manage.py collectstatic --noinput
 
 # run server
 CMD ["gunicorn", "storefront.wsgi:application", "--bind", "0.0.0.0:8080"]
