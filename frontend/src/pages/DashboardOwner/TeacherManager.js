@@ -3,18 +3,43 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import TeacherForm from "../../components/TeacherForm";
 
+/**
+ * TeacherManager
+ * 최종 수정일: 2026-01-12
+ *
+ * [수정 배경]
+ * - Vercel 배포 환경에서 axios 상대경로("/api/...") 사용 시
+ *   프론트 도메인으로 요청이 나가며 405 Method Not Allowed 발생
+ * - Django(Fly.io) API 서버로 정확히 요청을 보내기 위해
+ *   REACT_APP_API_BASE_URL 환경변수 기반 절대경로 사용
+ *
+ * [기존 로직 유지 사항]
+ * - JWT 인증 방식
+ * - 교사/과목 CRUD 로직
+ * - subjects 배열 처리 방식
+ */
+
 function TeacherManager() {
   const [teachers, setTeachers] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [editingTeacher, setEditingTeacher] = useState(null);
   const [editData, setEditData] = useState({});
 
+  // ✅ 2026-01-12
+  // 환경별(API 서버 분리) 대응을 위한 base URL
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
   // Load teachers
   const fetchTeachers = async () => {
     try {
-      const res = await axios.get("/api/teachers/", {
-        headers: { Authorization: `Bearer ${localStorage.getItem("access")}` },
-      });
+      const res = await axios.get(
+        `${API_BASE_URL}/api/teachers/`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access")}`,
+          },
+        }
+      );
       setTeachers(res.data);
     } catch (error) {
       console.error("교사 목록 불러오기 실패:", error);
@@ -24,9 +49,14 @@ function TeacherManager() {
   // Load subjects
   const fetchSubjects = async () => {
     try {
-      const res = await axios.get("/api/subjects/", {
-        headers: { Authorization: `Bearer ${localStorage.getItem("access")}` },
-      });
+      const res = await axios.get(
+        `${API_BASE_URL}/api/subjects/`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access")}`,
+          },
+        }
+      );
       setSubjects(res.data);
     } catch (error) {
       console.error("과목 목록 불러오기 실패:", error);
@@ -42,9 +72,14 @@ function TeacherManager() {
     if (!window.confirm("정말 삭제하시겠습니까?")) return;
 
     try {
-      await axios.delete(`/api/teachers/${id}/`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("access")}` },
-      });
+      await axios.delete(
+        `${API_BASE_URL}/api/teachers/${id}/`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access")}`,
+          },
+        }
+      );
       fetchTeachers();
     } catch (error) {
       console.error("삭제 실패:", error);
@@ -58,10 +93,11 @@ function TeacherManager() {
     setEditData({
       full_name: teacher.user?.full_name || "",
       email: teacher.user?.email || "",
-      // Use first subject in the array if exists
-      subject: teacher.subjects && teacher.subjects.length
-        ? String(teacher.subjects[0].id)
-        : "",
+      // 첫 번째 과목만 사용 (기존 로직 유지)
+      subject:
+        teacher.subjects && teacher.subjects.length
+          ? String(teacher.subjects[0].id)
+          : "",
     });
   };
 
@@ -69,7 +105,7 @@ function TeacherManager() {
     const { name, value } = e.target;
     setEditData((prev) => ({
       ...prev,
-      // keep subject as string for controlled <select>
+      // select 제어를 위해 subject는 string 유지
       [name]: name === "subject" ? String(value) : value,
     }));
   };
@@ -77,22 +113,23 @@ function TeacherManager() {
   const handleEditSubmit = async (id) => {
     try {
       await axios.patch(
-        `/api/teachers/${id}/`,
+        `${API_BASE_URL}/api/teachers/${id}/`,
         {
           user: {
             full_name: editData.full_name,
             email: editData.email,
           },
-          // send number or null; backend accepts single subject
+          // backend는 단일 subject id를 허용
           subject: editData.subject ? Number(editData.subject) : null,
         },
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem("access")}` },
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access")}`,
+          },
         }
       );
 
       setEditingTeacher(null);
-      // refresh list to reflect DB changes
       fetchTeachers();
       alert("✅ 수정 완료");
     } catch (error) {
@@ -149,7 +186,6 @@ function TeacherManager() {
                     >
                       <option value="">과목 선택</option>
                       {subjects.map((s) => (
-                        // option value must be string to match editData.subject
                         <option key={s.id} value={String(s.id)}>
                           {s.name}
                         </option>
@@ -166,10 +202,7 @@ function TeacherManager() {
                 <>
                   <td>{t.user?.full_name}</td>
                   <td>{t.user?.email}</td>
-
-                  {/* Show the first subject name (if any) */}
                   <td>{t.subjects?.[0]?.name || "과목 없음"}</td>
-
                   <td>
                     <button onClick={() => handleEdit(t)}>수정</button>
                     <button onClick={() => handleDelete(t.id)}>삭제</button>
