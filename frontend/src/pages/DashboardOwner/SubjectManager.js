@@ -4,6 +4,7 @@
 // - normalizeList 로 map is not array 방어
 // - 배포 / 로컬 API 응답 차이 대응
 // - CRUD 안정성 강화
+// - ✅ 렌더 단계 map crash 완전 차단 (React 안정성 핵심)
 
 import React, { useState, useEffect } from "react";
 import axios from "axios";
@@ -32,7 +33,7 @@ function SubjectManager() {
         }
       );
 
-      // ✅ map is not array 방어
+      // ✅ map is not array 방어 (데이터 레벨)
       setSubjects(normalizeList(res.data));
     } catch (error) {
       console.error("❌ 과목 목록 불러오기 실패:", error);
@@ -164,38 +165,44 @@ function SubjectManager() {
       </div>
 
       {/* ✅ 과목 목록 */}
+      {/* ✅ 2026-01-13: 렌더 단계 방어 (map crash 완전 차단) */}
       <ul>
-        {subjects.map((s) => (
-          <li key={s.id} style={{ marginBottom: "12px" }}>
-            {editingSubject === s.id ? (
-              <>
-                <input
-                  type="text"
-                  name="name"
-                  value={editData.name}
-                  onChange={handleEditChange}
-                  placeholder="과목 이름"
-                />
-                <input
-                  type="text"
-                  name="description"
-                  value={editData.description}
-                  onChange={handleEditChange}
-                  placeholder="설명"
-                />
-                <button onClick={() => handleEditSubmit(s.id)}>확인</button>
-                <button onClick={() => setEditingSubject(null)}>취소</button>
-              </>
-            ) : (
-              <>
-                <strong>{s.name}</strong>{" "}
-                {s.description && <em>({s.description})</em>}{" "}
-                <button onClick={() => handleEdit(s)}>수정</button>
-                <button onClick={() => handleDelete(s.id)}>삭제</button>
-              </>
-            )}
-          </li>
-        ))}
+        {Array.isArray(subjects) && subjects.length > 0 ? (
+          subjects.map((s) => (
+            <li key={s.id} style={{ marginBottom: "12px" }}>
+              {editingSubject === s.id ? (
+                <>
+                  <input
+                    type="text"
+                    name="name"
+                    value={editData.name}
+                    onChange={handleEditChange}
+                    placeholder="과목 이름"
+                  />
+                  <input
+                    type="text"
+                    name="description"
+                    value={editData.description}
+                    onChange={handleEditChange}
+                    placeholder="설명"
+                  />
+                  <button onClick={() => handleEditSubmit(s.id)}>확인</button>
+                  <button onClick={() => setEditingSubject(null)}>취소</button>
+                </>
+              ) : (
+                <>
+                  <strong>{s.name}</strong>{" "}
+                  {s.description && <em>({s.description})</em>}{" "}
+                  <button onClick={() => handleEdit(s)}>수정</button>
+                  <button onClick={() => handleDelete(s.id)}>삭제</button>
+                </>
+              )}
+            </li>
+          ))
+        ) : (
+          // ✅ 데이터 없음 / 토큰 만료 / 권한 문제 모두 안전 처리
+          <li style={{ color: "#999" }}>과목이 없습니다.</li>
+        )}
       </ul>
     </section>
   );
