@@ -1,19 +1,26 @@
-// ✅ Updated: 2025-11-04
+// ✅ Final Version
+// ✅ Last Updated: 2026-01-13
+// - Environment-based API_BASE_URL 적용
+// - normalizeList 로 map is not array 방어
+// - 배포 / 로컬 API 응답 차이 대응
+// - CRUD 안정성 강화
+
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { normalizeList } from "../../utils/api"; // ✅ 2026-01-12 공통 방어 유틸
+import { normalizeList } from "../../utils/api"; // ✅ 2026-01-13 공통 방어 유틸 유지
 
 function SubjectManager() {
   const [subjects, setSubjects] = useState([]);
   const [newSubject, setNewSubject] = useState({ name: "", description: "" });
-  const [editingSubject, setEditingSubject] = useState(null); // ✅ 2025-11-04 edit mode
-  const [editData, setEditData] = useState({ name: "", description: "" }); // ✅ 2025-11-04 edit data
+  const [editingSubject, setEditingSubject] = useState(null);
+  const [editData, setEditData] = useState({ name: "", description: "" });
 
-  // ✅ 2026-01-12
-  // TeacherManager 와 동일: 환경별 API 서버 분리 대응
+  // ✅ 2026-01-13
+  // 로컬 / Vercel / Fly.io 환경 분리 대응
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
-  // ✅ 2025-11-04: Fetch all subjects
+  // ✅ 2026-01-13
+  // 과목 목록 조회 (Array / pagination / 단일 객체 모두 대응)
   const fetchSubjects = async () => {
     try {
       const res = await axios.get(
@@ -25,11 +32,11 @@ function SubjectManager() {
         }
       );
 
-      // ✅ 2026-01-12: map 에러 방지 (Array / pagination 대응)
+      // ✅ map is not array 방어
       setSubjects(normalizeList(res.data));
     } catch (error) {
-      console.error("과목 목록 불러오기 실패:", error);
-      setSubjects([]); // ✅ 2026-01-12 추가 방어
+      console.error("❌ 과목 목록 불러오기 실패:", error);
+      setSubjects([]); // ✅ UI 크래시 방지
     }
   };
 
@@ -37,14 +44,21 @@ function SubjectManager() {
     fetchSubjects();
   }, []);
 
-  // ✅ 2025-11-04: Handle input for new subject
+  // ✅ 신규 과목 입력 처리
   const handleInputChange = (e) => {
-    setNewSubject({ ...newSubject, [e.target.name]: e.target.value });
+    setNewSubject({
+      ...newSubject,
+      [e.target.name]: e.target.value,
+    });
   };
 
-  // ✅ 2025-11-04: Create new subject
+  // ✅ 과목 생성
   const handleCreate = async () => {
-    if (!newSubject.name.trim()) return alert("과목 이름을 입력하세요.");
+    if (!newSubject.name.trim()) {
+      alert("과목 이름을 입력하세요.");
+      return;
+    }
+
     try {
       await axios.post(
         `${API_BASE_URL}/api/subjects/`,
@@ -55,18 +69,20 @@ function SubjectManager() {
           },
         }
       );
+
       setNewSubject({ name: "", description: "" });
       fetchSubjects();
       alert("✅ 과목이 추가되었습니다.");
     } catch (error) {
-      console.error("과목 추가 실패:", error);
+      console.error("❌ 과목 추가 실패:", error);
       alert("❌ 과목 추가 실패");
     }
   };
 
-  // ✅ 2025-11-04: Delete subject
+  // ✅ 과목 삭제
   const handleDelete = async (id) => {
     if (!window.confirm("정말 삭제하시겠습니까?")) return;
+
     try {
       await axios.delete(
         `${API_BASE_URL}/api/subjects/${id}/`,
@@ -76,15 +92,16 @@ function SubjectManager() {
           },
         }
       );
+
       fetchSubjects();
       alert("🗑️ 삭제 완료");
     } catch (error) {
-      console.error("삭제 실패:", error);
+      console.error("❌ 삭제 실패:", error);
       alert("❌ 삭제 실패");
     }
   };
 
-  // ✅ 2025-11-04: Start editing
+  // ✅ 수정 모드 진입
   const handleEdit = (subject) => {
     setEditingSubject(subject.id);
     setEditData({
@@ -93,12 +110,15 @@ function SubjectManager() {
     });
   };
 
-  // ✅ 2025-11-04: Edit input handler
+  // ✅ 수정 입력 변경
   const handleEditChange = (e) => {
-    setEditData({ ...editData, [e.target.name]: e.target.value });
+    setEditData({
+      ...editData,
+      [e.target.name]: e.target.value,
+    });
   };
 
-  // ✅ 2025-11-04: Submit update
+  // ✅ 수정 저장
   const handleEditSubmit = async (id) => {
     try {
       await axios.patch(
@@ -110,11 +130,12 @@ function SubjectManager() {
           },
         }
       );
+
       setEditingSubject(null);
       fetchSubjects();
       alert("✅ 수정 완료");
     } catch (error) {
-      console.error("수정 실패:", error);
+      console.error("❌ 수정 실패:", error);
       alert("❌ 수정 실패");
     }
   };
@@ -123,7 +144,7 @@ function SubjectManager() {
     <section>
       <h3>과목 관리</h3>
 
-      {/* ✅ 2025-11-04: Create new subject */}
+      {/* ✅ 과목 추가 */}
       <div style={{ marginBottom: "20px" }}>
         <input
           type="text"
@@ -142,13 +163,12 @@ function SubjectManager() {
         <button onClick={handleCreate}>추가</button>
       </div>
 
-      {/* ✅ 2025-11-04: Subject list */}
+      {/* ✅ 과목 목록 */}
       <ul>
         {subjects.map((s) => (
           <li key={s.id} style={{ marginBottom: "12px" }}>
             {editingSubject === s.id ? (
               <>
-                {/* ✅ 2025-11-04: Edit form */}
                 <input
                   type="text"
                   name="name"
