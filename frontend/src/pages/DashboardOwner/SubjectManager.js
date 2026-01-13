@@ -1,6 +1,7 @@
 // ✅ Updated: 2025-11-04
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { normalizeList } from "../../utils/api"; // ✅ 2026-01-12 공통 방어 유틸
 
 function SubjectManager() {
   const [subjects, setSubjects] = useState([]);
@@ -8,15 +9,27 @@ function SubjectManager() {
   const [editingSubject, setEditingSubject] = useState(null); // ✅ 2025-11-04 edit mode
   const [editData, setEditData] = useState({ name: "", description: "" }); // ✅ 2025-11-04 edit data
 
+  // ✅ 2026-01-12
+  // TeacherManager 와 동일: 환경별 API 서버 분리 대응
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
   // ✅ 2025-11-04: Fetch all subjects
   const fetchSubjects = async () => {
     try {
-      const res = await axios.get("/api/subjects/", {
-        headers: { Authorization: `Bearer ${localStorage.getItem("access")}` },
-      });
-      setSubjects(res.data);
+      const res = await axios.get(
+        `${API_BASE_URL}/api/subjects/`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access")}`,
+          },
+        }
+      );
+
+      // ✅ 2026-01-12: map 에러 방지 (Array / pagination 대응)
+      setSubjects(normalizeList(res.data));
     } catch (error) {
       console.error("과목 목록 불러오기 실패:", error);
+      setSubjects([]); // ✅ 2026-01-12 추가 방어
     }
   };
 
@@ -34,9 +47,13 @@ function SubjectManager() {
     if (!newSubject.name.trim()) return alert("과목 이름을 입력하세요.");
     try {
       await axios.post(
-        "/api/subjects/",
+        `${API_BASE_URL}/api/subjects/`,
         newSubject,
-        { headers: { Authorization: `Bearer ${localStorage.getItem("access")}` } }
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access")}`,
+          },
+        }
       );
       setNewSubject({ name: "", description: "" });
       fetchSubjects();
@@ -51,9 +68,14 @@ function SubjectManager() {
   const handleDelete = async (id) => {
     if (!window.confirm("정말 삭제하시겠습니까?")) return;
     try {
-      await axios.delete(`/api/subjects/${id}/`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("access")}` },
-      });
+      await axios.delete(
+        `${API_BASE_URL}/api/subjects/${id}/`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access")}`,
+          },
+        }
+      );
       fetchSubjects();
       alert("🗑️ 삭제 완료");
     } catch (error) {
@@ -65,7 +87,10 @@ function SubjectManager() {
   // ✅ 2025-11-04: Start editing
   const handleEdit = (subject) => {
     setEditingSubject(subject.id);
-    setEditData({ name: subject.name, description: subject.description || "" });
+    setEditData({
+      name: subject.name,
+      description: subject.description || "",
+    });
   };
 
   // ✅ 2025-11-04: Edit input handler
@@ -77,9 +102,13 @@ function SubjectManager() {
   const handleEditSubmit = async (id) => {
     try {
       await axios.patch(
-        `/api/subjects/${id}/`,
+        `${API_BASE_URL}/api/subjects/${id}/`,
         editData,
-        { headers: { Authorization: `Bearer ${localStorage.getItem("access")}` } }
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access")}`,
+          },
+        }
       );
       setEditingSubject(null);
       fetchSubjects();
