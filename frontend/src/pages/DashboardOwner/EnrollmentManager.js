@@ -3,9 +3,13 @@
 // Changes:
 // 1️⃣ Student dropdown fixed to use s.user.full_name
 // 2️⃣ POST/PATCH payload keys corrected to match serializer (student_id / course_id)
+// 3️⃣ ✅ 2026-01-15: Render-level map crash 방어 (CourseManager 패턴 적용)
+// 4️⃣ ✅ 2026-01-15: API 응답 Array / pagination / object 대응
+// 5️⃣ ✅ 2026-01-15: 배포 환경 안정성 강화 (UI crash 완전 차단)
 
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { normalizeList } from "../../utils/api"; // ✅ 2026-01-15: Subject/CourseManager 와 동일 방어 유틸
 
 function EnrollmentManager() {
   const [enrollments, setEnrollments] = useState([]);
@@ -27,9 +31,12 @@ function EnrollmentManager() {
       const res = await axios.get("/api/enrollments/", {
         headers: { Authorization: `Bearer ${localStorage.getItem("access")}` },
       });
-      setEnrollments(res.data || []);
+
+      // ✅ 2026-01-15: map is not array 방어
+      setEnrollments(normalizeList(res.data));
     } catch (error) {
       console.error("❌ Failed to fetch enrollments:", error);
+      setEnrollments([]); // ✅ UI 크래시 방지
     }
   };
 
@@ -38,9 +45,12 @@ function EnrollmentManager() {
       const res = await axios.get("/api/students/", {
         headers: { Authorization: `Bearer ${localStorage.getItem("access")}` },
       });
-      setStudents(res.data || []);
+
+      // ✅ 2026-01-15
+      setStudents(normalizeList(res.data));
     } catch (error) {
       console.error("❌ Failed to fetch students:", error);
+      setStudents([]);
     }
   };
 
@@ -49,9 +59,12 @@ function EnrollmentManager() {
       const res = await axios.get("/api/courses/", {
         headers: { Authorization: `Bearer ${localStorage.getItem("access")}` },
       });
-      setCourses(res.data || []);
+
+      // ✅ 2026-01-15
+      setCourses(normalizeList(res.data));
     } catch (error) {
       console.error("❌ Failed to fetch courses:", error);
+      setCourses([]);
     }
   };
 
@@ -71,8 +84,11 @@ function EnrollmentManager() {
     if (typeof s === "object") {
       return s.user?.full_name || s.user?.email || `Student#${s.id}`;
     }
+
     const found = students.find((st) => Number(st.id) === Number(s));
-    return found ? (found.user?.full_name || found.user?.email) : `Student#${s}`;
+    return found
+      ? found.user?.full_name || found.user?.email
+      : `Student#${s}`;
   };
 
   const resolveCourseName = (enr) => {
@@ -199,26 +215,41 @@ function EnrollmentManager() {
 
         <div style={{ display: "grid", gap: "8px" }}>
           {/* 🔹 Student dropdown fixed to use user.full_name */}
-          <select name="student" value={form.student} onChange={handleChange} required>
+          <select
+            name="student"
+            value={form.student}
+            onChange={handleChange}
+            required
+          >
             <option value="">Select Student</option>
-            {students.map((s) => {
-              const label = s.user?.full_name || s.user?.email || `Student #${s.id}`;
-              return (
-                <option key={s.id} value={s.id}>
-                  {label}
-                </option>
-              );
-            })}
+            {Array.isArray(students) &&
+              students.map((s) => {
+                const label =
+                  s.user?.full_name ||
+                  s.user?.email ||
+                  `Student #${s.id}`;
+                return (
+                  <option key={s.id} value={s.id}>
+                    {label}
+                  </option>
+                );
+              })}
           </select>
 
           {/* Course dropdown — unchanged */}
-          <select name="course" value={form.course} onChange={handleChange} required>
+          <select
+            name="course"
+            value={form.course}
+            onChange={handleChange}
+            required
+          >
             <option value="">Select Course</option>
-            {courses.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
+            {Array.isArray(courses) &&
+              courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
           </select>
 
           <button type="submit">➕ Enroll</button>
@@ -228,34 +259,49 @@ function EnrollmentManager() {
       {/* LIST */}
       <h4>Enrollment List</h4>
 
-      {enrollments.length === 0 ? (
-        <p>No enrollments yet.</p>
-      ) : (
+      {/* ✅ 2026-01-15: 렌더 단계 방어 */}
+      {Array.isArray(enrollments) && enrollments.length > 0 ? (
         enrollments.map((enr) => (
-          <div key={enr.id} style={{ border: "1px solid #ddd", padding: 12, marginBottom: 10 }}>
+          <div
+            key={enr.id}
+            style={{ border: "1px solid #ddd", padding: 12, marginBottom: 10 }}
+          >
             {editId === enr.id ? (
               <>
                 {/* 🔹 Edit mode student dropdown fixed */}
-                <select name="student" value={form.student} onChange={handleChange}>
+                <select
+                  name="student"
+                  value={form.student}
+                  onChange={handleChange}
+                >
                   <option value="">Select Student</option>
-                  {students.map((s) => {
-                    const label = s.user?.full_name || s.user?.email || `Student #${s.id}`;
-                    return (
-                      <option key={s.id} value={s.id}>
-                        {label}
-                      </option>
-                    );
-                  })}
+                  {Array.isArray(students) &&
+                    students.map((s) => {
+                      const label =
+                        s.user?.full_name ||
+                        s.user?.email ||
+                        `Student #${s.id}`;
+                      return (
+                        <option key={s.id} value={s.id}>
+                          {label}
+                        </option>
+                      );
+                    })}
                 </select>
 
                 {/* Edit mode course dropdown */}
-                <select name="course" value={form.course} onChange={handleChange}>
+                <select
+                  name="course"
+                  value={form.course}
+                  onChange={handleChange}
+                >
                   <option value="">Select Course</option>
-                  {courses.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
+                  {Array.isArray(courses) &&
+                    courses.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
                 </select>
 
                 <div style={{ marginTop: 8 }}>
@@ -267,7 +313,8 @@ function EnrollmentManager() {
               </>
             ) : (
               <>
-                <strong>{resolveStudentName(enr)}</strong> → {resolveCourseName(enr)}
+                <strong>{resolveStudentName(enr)}</strong> →{" "}
+                {resolveCourseName(enr)}
                 <br />
                 <small>Enrolled: {enr.enrolled_at}</small>
                 <br />
@@ -281,6 +328,8 @@ function EnrollmentManager() {
             )}
           </div>
         ))
+      ) : (
+        <p style={{ color: "#999" }}>No enrollments yet.</p>
       )}
     </section>
   );
